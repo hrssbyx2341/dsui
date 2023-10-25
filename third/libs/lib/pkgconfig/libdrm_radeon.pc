@@ -1,0 +1,11 @@
+prefix=/home/hrs/workSpace/DSEasyUI/third/libs
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libdrm_radeon
+Description: Userspace interface to kernel DRM services for radeon
+Version: 2.4.117
+Requires.private: libdrm
+Libs: -L${libdir} -ldrm_radeon
+Libs.private: -pthread
+Cflags: -I${includedir} -I${includedir}/libdrm

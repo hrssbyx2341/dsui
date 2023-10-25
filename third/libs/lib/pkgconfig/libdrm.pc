@@ -1,0 +1,10 @@
+prefix=/home/hrs/workSpace/DSEasyUI/third/libs
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libdrm
+Description: Userspace interface to kernel DRM services
+Version: 2.4.117
+Libs: -L${libdir} -ldrm
+Libs.private: -lm
+Cflags: -I${includedir} -I${includedir}/libdrm
