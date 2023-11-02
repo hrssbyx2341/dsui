@@ -5,23 +5,24 @@
 
 #include <linux/input.h>
 #include <stdint.h>
+#include <sys/epoll.h>
 
 #define TRUE 1
 #define FALSE 0
 
-#define SET_INUT_CALLBACK(func) input_callback=func
+typedef int8_t *(input_callback_func)(struct input_event, int8_t);
 
-int8_t *(input_callback)(struct input_event, int8_t device_id);
+int8_t init_input(input_callback_func);
 
-// int8_t init_input(void);
-
-struct hardware_inputs
+struct hardware_input
 {
     int8_t is_avaiable;
     char *device_name;
-    int32_t device_id;
-    struct input_event;
+    struct epoll_event ev;
+    struct input_event event;
 };
+
+
 
 
 #endif
