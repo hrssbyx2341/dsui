@@ -10,9 +10,17 @@
 #define TRUE 1
 #define FALSE 0
 
-typedef int8_t *(input_callback_func)(struct input_event, int8_t);
+#define EVENT_ADD 1
+#define EVENT_REMOVE 2
 
-int8_t init_input(input_callback_func);
+typedef int8_t *(input_callback_func)(struct input_event, int8_t);
+typedef int8_t *(event_callback_func)(char*, int8_t);
+
+
+struct callback_func{
+    input_callback_func *input_callback;
+    event_callback_func *event_callback;
+};
 
 struct hardware_input
 {
@@ -22,6 +30,7 @@ struct hardware_input
     struct input_event event;
 };
 
+int8_t init_input(struct callback_func *);
 
 
 

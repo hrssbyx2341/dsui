@@ -85,7 +85,7 @@ int remove_his(char *event_name, int32_t epoll_fd){
 void *event_input_listener(void *arg){
     int nfds,i;
     struct input_event event;
-    input_callback_func *input_callback = (input_callback_func *)(arg);
+    struct callback_func *cf = (struct callback_func *)(arg);
     for(;;){
         nfds = epoll_wait(g_epoll_fd, g_events, MAX_EVENTS, -1);
         if (nfds == -1){
@@ -96,7 +96,7 @@ void *event_input_listener(void *arg){
         for (i = 0; i < nfds; ++i){
             ssize_t bytes = read(g_events[i].data.fd, &event, sizeof(event));
             if (bytes == sizeof(event)){
-                (*input_callback)(event,g_events[i].data.fd);
+                cf->input_callback(event,g_events[i].data.fd);
             }
         }
     }
@@ -104,6 +104,7 @@ void *event_input_listener(void *arg){
 
 void *event_change_listener(void *arg){
     // 初始化 /dev/input/ 目录下的节点
+    struct callback_func *cf = (struct callback_func *)(arg);
     DIR *dir = NULL;
     struct dirent *entry;
     dir = opendir("/dev/input");
@@ -120,6 +121,7 @@ void *event_change_listener(void *arg){
                 if (strncmp(entry->d_name, "event", 5) == 0){
                     // TODO 这里用来初始化设备列表
                     add_his(entry->d_name,g_epoll_fd);
+                    cf->event_callback(entry->d_name,EVENT_ADD);
                     printf("debug, get input dev = %s\n",entry->d_name);
                 }
             }
@@ -159,12 +161,14 @@ void *event_change_listener(void *arg){
                         printf("设备文件 %s 被创建\n", event->name);
                         // TODO 这里要处理设备文件被创建的逻辑
                         add_his(event->name,g_epoll_fd);
+                        cf->event_callback(event->name,EVENT_ADD);
                     }
                 } else if (event->mask & IN_DELETE) {
                     if (!(event->mask & IN_ISDIR) && (strncmp(event->name, "event", 5) == 0)) {
                         printf("设备文件 %s 被删除\n", event->name);
                         // TODO 这里要处理设备文件被删除的逻辑
                         remove_his(event->name,g_epoll_fd);
+                        cf->event_callback(event->name,EVENT_REMOVE);
                     }
                 }
             }
@@ -178,16 +182,16 @@ void *event_change_listener(void *arg){
     return NULL;
 }
 
-int8_t init_input(input_callback_func input_callback){
+int8_t init_input(struct callback_func *cf){
     pthread_t event_thread_id, input_thread_id;
     init_epoll_fd();
     init_his();
-    if (pthread_create(&event_thread_id,NULL,event_change_listener,NULL) != 0){
+    if (pthread_create(&event_thread_id,NULL,event_change_listener,(void *)cf) != 0){
         perror("event thread");
         return -1;
     }
     
-    if (pthread_create(&input_thread_id,NULL,event_input_listener, &input_callback) != 0){
+    if (pthread_create(&input_thread_id,NULL,event_input_listener, (void *)cf) != 0){
         perror("input thread");
         return -1;
     }
@@ -198,13 +202,19 @@ int8_t init_input(input_callback_func input_callback){
     return 0;
 }
 
-int8_t test_callback(struct input_event event, int8_t device_id){
-    printf("xiaohu\n");
-    // printf("Event id = %d, event type = 0x%x, code = 0x%x, value = 0x%x\n",device_id,event.type,event.code,event.value);
+int8_t test_input_callback(struct input_event event, int8_t device_id){
+    printf("Event id = %d, event type = 0x%x, code = 0x%x, value = 0x%x\n",device_id,event.type,event.code,event.value);
+}
+
+int8_t test_event_callback(char *event_name, int8_t change_type){
+    printf("%s is %s\n",event_name,(change_type==EVENT_ADD?"added":"removed"));
 }
 
 int main(int argc, char const *argv[])
 {
-    init_input(test_callback);
+    struct callback_func cf;
+    cf.input_callback = test_input_callback;
+    cf.event_callback = test_event_callback;
+    init_input(&cf);
     return 0;
 }
