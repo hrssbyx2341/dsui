@@ -1,5 +1,5 @@
-prefix=/home/hrs/workSpace/DSEasyUI/third/libs
-libdir=${prefix}/lib
+prefix=/root/dseasyui/third/libs
+libdir=${prefix}/lib/aarch64-linux-gnu
 includedir=${prefix}/include
 
 Name: libdrm_amdgpu

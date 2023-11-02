@@ -1,0 +1,11 @@
+prefix=/root/dseasyui/third/libs
+libdir=${prefix}/lib/aarch64-linux-gnu
+includedir=${prefix}/include
+
+Name: libdrm_freedreno
+Description: Userspace interface to freedreno kernel DRM services
+Version: 2.4.117
+Requires.private: libdrm
+Libs: -L${libdir} -ldrm_freedreno
+Libs.private: -pthread
+Cflags: -I${includedir} -I${includedir}/libdrm -I${includedir}/freedreno

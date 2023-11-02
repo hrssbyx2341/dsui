@@ -1,0 +1,11 @@
+prefix=/root/dseasyui/third/libs
+libdir=${prefix}/lib/aarch64-linux-gnu
+includedir=${prefix}/include
+
+Name: libdrm_etnaviv
+Description: Userspace interface to Tegra kernel DRM services
+Version: 2.4.117
+Requires.private: libdrm
+Libs: -L${libdir} -ldrm_etnaviv
+Libs.private: -pthread
+Cflags: -I${includedir} -I${includedir}/libdrm
