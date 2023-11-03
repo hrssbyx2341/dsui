@@ -96,10 +96,14 @@ int remove_his(char *event_name, int32_t epoll_fd){
 
 void *event_change_listener(void *arg){
     // 初始化 /dev/input/ 目录下的节点
-    struct callback_func *cf = (struct callback_func *)(arg);
+    struct callback_func *cf = NULL;
     DIR *dir = NULL;
     struct dirent *entry;
     int ret = 0;
+
+    if (arg != NULL){
+        cf = (struct callback_func *)(arg);
+    }
     for(;;){
         dir = opendir("/dev/input");
         if (dir != NULL){
@@ -118,7 +122,7 @@ void *event_change_listener(void *arg){
                         // TODO 这里用来初始化设备列表
                         DSLOGD("find input dev = %s\n",entry->d_name);
                         ret = add_his(entry->d_name,g_epoll_fd);
-                        if (!ret){
+                        if (!ret && cf != NULL){
                             cf->event_callback(entry->d_name,EVENT_ADD);
                         }
                     }
@@ -191,7 +195,10 @@ void *event_change_listener(void *arg){
 void *event_input_listener(void *arg){
     int nfds,i;
     struct input_event event;
-    struct callback_func *cf = (struct callback_func *)(arg);
+    struct callback_func *cf = NULL;
+    if (arg != NULL){
+        cf = (struct callback_func *)(arg);
+    }
     for(;;){
         nfds = epoll_wait(g_epoll_fd, g_events, MAX_EVENTS, -1);
         if (nfds == -1){
@@ -201,7 +208,7 @@ void *event_input_listener(void *arg){
         }
         for (i = 0; i < nfds; ++i){
             ssize_t bytes = read(g_events[i].data.fd, &event, sizeof(event));
-            if (bytes == sizeof(event)){
+            if (bytes == sizeof(event) || cf != NULL){
                 cf->input_callback(event,g_events[i].data.fd);
             }
         }
