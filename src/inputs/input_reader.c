@@ -10,7 +10,7 @@
 #include <linux/input.h>
 #include <pthread.h>
 
-#include "hardware_inputs.h"
+#include "input_reader.h"
 
 #define DSLOG_TAG "DS_INPUT"
 #include "../includes/ds_log.h"
@@ -229,25 +229,10 @@ int8_t init_input(struct callback_func *cf){
         return -1;
     }
 
-    for(;;){
-        sleep(10);
-    }
+    // for(;;){
+    //     sleep(10);
+    // }
     return 0;
 }
 
-int8_t test_input_callback(struct input_event event, int8_t device_id){
-    DSLOGD("Event id = %d, event type = 0x%x, code = 0x%x, value = 0x%x\n",device_id,event.type,event.code,event.value);
-}
 
-int8_t test_event_callback(char *event_name, int8_t change_type){
-    DSLOGD("%s is %s\n",event_name,(change_type==EVENT_ADD?"added":"removed"));
-}
-
-int main(int argc, char const *argv[])
-{
-    struct callback_func cf;
-    cf.input_callback = test_input_callback;
-    cf.event_callback = test_event_callback;
-    init_input(&cf);
-    return 0;
-}

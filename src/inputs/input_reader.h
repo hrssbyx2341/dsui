@@ -1,7 +1,7 @@
-#ifndef __HARDWARE_INPUTS_H__
-#define __HARDWARE_INPUTS_H__
+#ifndef __INPUT_READER_H__
+#define __INPUT_READER_H__
 
-#define MAX_INPUT_DEVICE 6
+#define MAX_INPUT_DEVICE 256
 
 #include <linux/input.h>
 #include <stdint.h>
