@@ -122,7 +122,7 @@ void *event_change_listener(void *arg){
                         // TODO 这里用来初始化设备列表
                         DSLOGD("find input dev = %s\n",entry->d_name);
                         ret = add_his(entry->d_name,g_epoll_fd);
-                        if (!ret && cf != NULL){
+                        if (!ret && cf != NULL && cf->event_callback != NULL){
                             cf->event_callback(entry->d_name,EVENT_ADD);
                         }
                     }
@@ -167,7 +167,7 @@ void *event_change_listener(void *arg){
                             // TODO 这里要处理设备文件被创建的逻辑
                             DSLOGD("%s file added\n",event->name);
                             ret = add_his(event->name,g_epoll_fd);
-                            if (!ret){
+                            if (!ret && cf != NULL && cf->event_callback != NULL){
                                 cf->event_callback(event->name,EVENT_ADD);
                             }
                         }
@@ -176,7 +176,7 @@ void *event_change_listener(void *arg){
                             // TODO 这里要处理设备文件被删除的逻辑
                             DSLOGD("%s file removed\n",event->name);
                             ret = remove_his(event->name,g_epoll_fd);
-                            if (!ret){
+                            if (!ret && cf != NULL && cf->event_callback != NULL){
                                 cf->event_callback(event->name,EVENT_REMOVE);
                             }
                         }
@@ -208,7 +208,7 @@ void *event_input_listener(void *arg){
         }
         for (i = 0; i < nfds; ++i){
             ssize_t bytes = read(g_events[i].data.fd, &event, sizeof(event));
-            if (bytes == sizeof(event) || cf != NULL){
+            if (bytes == sizeof(event) && cf != NULL && cf->input_callback != NULL){
                 cf->input_callback(event,g_events[i].data.fd);
             }
         }
