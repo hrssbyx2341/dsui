@@ -7,8 +7,13 @@
 #include <stdint.h>
 #include <sys/epoll.h>
 
+#ifndef TRUE
 #define TRUE 1
+#endif
+
+#ifndef FALSE
 #define FALSE 0
+#endif
 
 #define EVENT_ADD 1
 #define EVENT_REMOVE 2

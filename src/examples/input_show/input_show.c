@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <linux/input-event-codes.h>
+#include <sys/time.h>
 
 #include "xf86drm.h"
 #include "xf86drmMode.h"
@@ -164,8 +165,8 @@ int main(int argc, char **argv)
     
     connectors_num = resources->count_connectors;
     for ( i = 0; i < connectors_num; i++ ){
-        crtc_id = resources->crtcs[1];  //获取crtc id
-        conn_id = resources->connectors[1];  //获取connector id
+        crtc_id = resources->crtcs[0];  //获取crtc id
+        conn_id = resources->connectors[0];  //获取connector id
         connector = drmModeGetConnector(fd, conn_id);	//根据connector_id获取connector资源
         printf("xiaohu, modes count = %d, props count = %d, encoder count = %d\n",connector->count_modes, connector->count_props, connector->count_encoders);
         if (connector == NULL){
@@ -234,8 +235,18 @@ int main(int argc, char **argv)
 
 
 int show_mouse(){
+    struct timeval start, draw_end,show_end;
+    double draw_time,show_time,all_time;
+
+    gettimeofday(&start,NULL);
     create_fb(fd,connector->modes[0].hdisplay,connector->modes[0].vdisplay, g_color, &buf[0]);
+    gettimeofday(&draw_end,NULL);
     drmModeSetCrtc(fd, crtc_id, buf[0].fb_id, 0, 0, &conn_id, 1, &connector->modes[0]);
+    gettimeofday(&show_end,NULL);
+    draw_time = (draw_end.tv_sec - start.tv_sec)*1000000.0 +(draw_end.tv_usec - start.tv_usec);
+    show_time = (show_end.tv_sec - draw_end.tv_sec)*1000000.0 +(show_end.tv_usec - draw_end.tv_usec);
+    all_time = draw_time+show_time;
+    DSLOGD("frame draw spend %f ms, frame show spend %f ms, one frame spend %f ms, fps = %f\n",(draw_time/1000),(show_time/1000),(all_time/1000),(1000/(all_time/1000)));
 }
 
 
