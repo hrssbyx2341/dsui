@@ -181,7 +181,18 @@ uint8_t M_buffer::start_m_buffer_thread(){
     }
 }
 
+static uint32_t g_serial = 0;
 
+void *produce_task_func(void *arg){
+    int value = *(int *)arg;
+    value = g_serial;
+    printf("set value = %d\n",value);
+}
+
+void *consume_task_func(void *arg){
+    int value = *(int *)arg;
+    printf("----> show value = %d\n",value);
+}
 
 #define BUFFER_TASK_SIZE 3
 int main(int argc, char const *argv[])
@@ -194,8 +205,8 @@ int main(int argc, char const *argv[])
     buffer_task = (struct buffer_task *)malloc(BUFFER_TASK_SIZE * sizeof(struct buffer_task));
     for (i = 0; i < BUFFER_TASK_SIZE; i++){
         buffer_task[i].args =  (void *)&(task_values[i]);
-        buffer_task[i].produce_task = NULL;
-        buffer_task[i].consume_task = NULL;
+        buffer_task[i].produce_task = produce_task_func;
+        buffer_task[i].consume_task = consume_task_func;
     }
 
     M_buffer m_buffer(&buffer_task,BUFFER_TASK_SIZE);
@@ -203,7 +214,8 @@ int main(int argc, char const *argv[])
 
     for(;;){
         usleep(10000);
+        g_serial++;
     }
-    
+    free(buffer_task);
     return 0;
 }
