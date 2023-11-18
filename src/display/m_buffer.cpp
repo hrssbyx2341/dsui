@@ -184,14 +184,14 @@ uint8_t M_buffer::start_m_buffer_thread(){
 static uint32_t g_serial = 0;
 
 void *produce_task_func(void *arg){
-    int value = *(int *)arg;
-    value = g_serial;
-    printf("set value = %d\n",value);
+    int *value = (int *)arg;
+    *value = g_serial;
+    printf("set value = %d\n",*value);
 }
 
 void *consume_task_func(void *arg){
-    int value = *(int *)arg;
-    printf("----> show value = %d\n",value);
+    int *value = (int *)arg;
+    printf("----> show value = %d\n",*value);
 }
 
 #define BUFFER_TASK_SIZE 3
