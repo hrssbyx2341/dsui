@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "m_buffer.h"
 
@@ -31,13 +32,14 @@ struct timetick_thread{
 class M_buffer
 {
     private:
-        std::vector<struct sem_thread> produce_threads;
-        sem_t sems[MAX_PRODUCE_THREAD_NUM], consume_sem;
-        struct sem_thread consume_thread;
-        struct timetick_thread timetick_thread;
-        std::queue<struct buffer_task *> p_queue;
-        std::queue<struct buffer_task *> c_queue;
-        pthread_mutex_t p_mutex,c_mutex;
+        uint32_t buffer_task_size = 0;
+        std::vector<struct sem_thread> *produce_threads;
+        sem_t *sems[MAX_PRODUCE_THREAD_NUM], *consume_sem;
+        struct sem_thread *consume_thread;
+        struct timetick_thread *timetick_thread;
+        std::queue<struct buffer_task *> *p_queue;
+        std::queue<struct buffer_task *> *c_queue;
+        pthread_mutex_t *p_mutex,*c_mutex;
     public:
         M_buffer(struct buffer_task **bts, uint32_t bts_num);
         ~M_buffer();
@@ -45,57 +47,76 @@ class M_buffer
         uint8_t start_m_buffer_thread();
 };
 
-M_buffer::M_buffer(struct buffer_task **bts, uint32_t bts_num){
+M_buffer::M_buffer(struct buffer_task **bts_p, uint32_t bts_num){
     uint32_t i = 0;
-
-    if (bts == NULL){
+    this->buffer_task_size = bts_num;
+    if (bts_p == NULL){
         return;
     }
+    struct buffer_task *bts = *bts_p;
+    this->consume_thread = (struct sem_thread *)malloc(sizeof(struct sem_thread));
+    for (i=0; i < MAX_PRODUCE_THREAD_NUM; i++){
+        this->sems[i] = (sem_t *)malloc(sizeof(sem_t));
+    }
+    this->consume_sem = (sem_t *)malloc(sizeof(sem_t));
+    this->timetick_thread = (struct timetick_thread *)malloc(sizeof(struct timetick_thread));
+    this->p_queue = new std::queue<struct buffer_task *>;
+    this->c_queue = new std::queue<struct buffer_task *>;
+    this->produce_threads = new std::vector<struct sem_thread>;
+    this->p_mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+    this->c_mutex = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     
-    pthread_mutex_init(&(this->p_mutex),NULL);
-    pthread_mutex_init(&(this->c_mutex),NULL);
-    pthread_mutex_lock(&(this->p_mutex));
+    pthread_mutex_init(this->p_mutex,NULL);
+    pthread_mutex_init(this->c_mutex,NULL);
+    pthread_mutex_lock(this->p_mutex);
     for (i = 0; i < bts_num; i++){
-        if (bts[i] == NULL){
-            continue;
-        }
-        p_queue.push(bts[i]);
+        p_queue->push(&(bts[i]));
     }
-    pthread_mutex_unlock(&(this->p_mutex));
+    pthread_mutex_unlock(this->p_mutex);
 
-    this->produce_threads.resize(MAX_PRODUCE_THREAD_NUM);
-    for (i = 0; i < this->produce_threads.size(); i++){
-        sem_init(&(this->sems[i]),0,1);
-        this->produce_threads[i].semaphore = &(this->sems[i]);
-        this->produce_threads[i].p_queue_p = &(this->p_queue);
-        this->produce_threads[i].c_queue_p = &(this->c_queue);
-        this->produce_threads[i].p_mutex_p = &(this->p_mutex);
-        this->produce_threads[i].c_mutex_p = &(this->c_mutex);
+    this->produce_threads->resize(MAX_PRODUCE_THREAD_NUM);
+    for (i = 0; i < this->produce_threads->size(); i++){
+        sem_init(this->sems[i],0,0);
+        (*this->produce_threads)[i].semaphore = this->sems[i];
+        (*this->produce_threads)[i].p_queue_p = this->p_queue;
+        (*this->produce_threads)[i].c_queue_p = this->c_queue;
+        (*this->produce_threads)[i].p_mutex_p = this->p_mutex;
+        (*this->produce_threads)[i].c_mutex_p = this->c_mutex;
     }
 
-    sem_init(&(this->consume_sem),0,1);
-    this->consume_thread.semaphore = &(this->consume_sem);
-    this->consume_thread.p_queue_p = &(this->p_queue);
-    this->consume_thread.c_queue_p = &(this->c_queue);
-    this->consume_thread.p_mutex_p = &(this->p_mutex);
-    this->consume_thread.c_mutex_p = &(this->c_mutex);
+    sem_init(this->consume_sem,0,0);
+    this->consume_thread->semaphore = this->consume_sem;
+    this->consume_thread->p_queue_p = this->p_queue;
+    this->consume_thread->c_queue_p = this->c_queue;
+    this->consume_thread->p_mutex_p = this->p_mutex;
+    this->consume_thread->c_mutex_p = this->c_mutex;
 
-    this->timetick_thread.p_thread_size = MAX_PRODUCE_THREAD_NUM;
-    this->timetick_thread.c_thread_p = &(this->consume_thread);
-    this->timetick_thread.p_threads_p = &(this->produce_threads);
+    this->timetick_thread->p_thread_size = MAX_PRODUCE_THREAD_NUM;
+    this->timetick_thread->c_thread_p = this->consume_thread;
+    this->timetick_thread->p_threads_p = this->produce_threads;
 }
 
 M_buffer::~M_buffer(){
+    uint32_t i;
+    free(this->p_mutex);
+    free(this->c_mutex);
+    delete this->produce_threads;
+    delete this->p_queue;
+    delete this->c_queue;
+    free(this->timetick_thread);
+    free (this->consume_sem);
+    free(this->consume_thread);
+    for ( i = 0; i < this->buffer_task_size; i++){
+        free(this->sems[i]);
+    }
 }
 
 void *produce_thread_handle(void *arg){
-    printf("%s %d\n",__func__,__LINE__);
     struct sem_thread *p_thread_p =  (struct sem_thread *)arg;
     for(;;){
         sem_wait(p_thread_p->semaphore);
-        printf("%s %d\n",__func__,__LINE__);
         struct buffer_task *p_task = NULL;
-        if (pthread_mutex_trylock(p_thread_p->p_mutex_p)){
+        if (!pthread_mutex_trylock(p_thread_p->p_mutex_p)){
             if (!(p_thread_p->p_queue_p->empty())){
                 p_task = p_thread_p->p_queue_p->front();
                 p_thread_p->p_queue_p->pop();
@@ -109,16 +130,13 @@ void *produce_thread_handle(void *arg){
             p_thread_p->c_queue_p->push(p_task);
             pthread_mutex_unlock(p_thread_p->c_mutex_p);
         }
-        usleep(15000);
     }
 }
 
 void *consume_thread_handle(void *arg){
-    printf("%s %d\n",__func__,__LINE__);
     struct sem_thread *c_thread_p = (struct sem_thread *)arg;
     for(;;){
         sem_wait(c_thread_p->semaphore);
-        printf("%s %d\n",__func__,__LINE__);
         struct buffer_task *c_task = NULL;
         pthread_mutex_lock(c_thread_p->c_mutex_p);
         if (!(c_thread_p->c_queue_p->empty())){
@@ -132,7 +150,6 @@ void *consume_thread_handle(void *arg){
             c_thread_p->p_queue_p->push(c_task);
             pthread_mutex_unlock(c_thread_p->p_mutex_p);
         }
-        usleep(15000);
     }
 }
 
@@ -144,10 +161,8 @@ void *timetick_thread_handle(void *arg){
     uint32_t i = 0;
     for(;;){
         for(i = 0; i < p_thread_size; i++){
-            printf("%s %d\n",__func__,__LINE__);
             sem_post(p_threads_p[i].semaphore);
         }
-        printf("%s %d\n",__func__,__LINE__);
         sem_post(c_thread_p->semaphore);
         usleep(15000);
     }
@@ -156,26 +171,26 @@ void *timetick_thread_handle(void *arg){
 
 uint8_t M_buffer::start_m_buffer_thread(){
     uint32_t i = 0;
-    if (p_queue.empty()){
+    if (p_queue->empty()){
         printf("No buffer task\n");
         return -1;
     }
 
     printf("Start multi-buffer model\n");
 
-    if (pthread_create(&(this->consume_thread.pthread_id),NULL,consume_thread_handle,(void *)(&(this->consume_thread))) != 0){
+    if (pthread_create(&(this->consume_thread->pthread_id),NULL,consume_thread_handle,(void *)(this->consume_thread)) != 0){
         perror("flush framebuffer thread");
         return -1;
     }
 
     for (i = 0; i < MAX_PRODUCE_THREAD_NUM; i++){
-        if(pthread_create(&(this->produce_threads[i].pthread_id), NULL, produce_thread_handle, (void *)(&(this->produce_threads[i])))){
+        if(pthread_create(&((*this->produce_threads)[i].pthread_id), NULL, produce_thread_handle, (void *)(&((*this->produce_threads)[i])))){
             perror("produce framebuffer thread");
             continue;
         }
     }
 
-    if (pthread_create(&(this->timetick_thread.pthread_id),NULL,timetick_thread_handle, (void *)(&(this->timetick_thread))) != 0){
+    if (pthread_create(&(this->timetick_thread->pthread_id),NULL,timetick_thread_handle, (void *)(this->timetick_thread)) != 0){
         perror("time tick thread");
         return -1;
     }
@@ -184,17 +199,29 @@ uint8_t M_buffer::start_m_buffer_thread(){
 static uint32_t g_serial = 0;
 
 void *produce_task_func(void *arg){
+    g_serial++;
     int *value = (int *)arg;
     *value = g_serial;
-    printf("set value = %d\n",*value);
+    usleep(50000);
 }
 
+
+static struct timeval curr_time, last_time;
 void *consume_task_func(void *arg){
     int *value = (int *)arg;
-    printf("----> show value = %d\n",*value);
+    
+    
+    double time_stamp,last_time_stamp,time_splite;
+    last_time_stamp = (curr_time.tv_sec*1000000.0+curr_time.tv_usec)/1000;
+    gettimeofday(&curr_time,NULL);
+    time_stamp = (curr_time.tv_sec*1000000.0+curr_time.tv_usec)/1000;
+    time_splite = time_stamp - last_time_stamp;
+    
+    printf("[%lf][%lf]<<<<<<<<<< show value = %d, pthread = %ld\n",time_stamp,time_splite,*value,pthread_self());
+    usleep(10000);
 }
 
-#define BUFFER_TASK_SIZE 3
+
 int main(int argc, char const *argv[])
 {
     uint32_t i;
@@ -214,7 +241,6 @@ int main(int argc, char const *argv[])
 
     for(;;){
         usleep(10000);
-        g_serial++;
     }
     free(buffer_task);
     return 0;

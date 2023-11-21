@@ -1,7 +1,13 @@
 #ifndef __M_BUFFER_H__
 #define __M_BUFFER_H__
 
-#define MAX_PRODUCE_THREAD_NUM 3
+#ifndef MAX_PRODUCE_THREAD_NUM
+#define MAX_PRODUCE_THREAD_NUM 10
+#endif
+
+#ifndef BUFFER_TASK_SIZE
+#define BUFFER_TASK_SIZE 20
+#endif
 
 typedef void* (*task_func_t)(void *);
 
