@@ -10,8 +10,8 @@
 
 #include "m_buffer.h"
 
-#define DSLOG_TAG "M_BUFFER"
-#include "../includes/ds_log.h"
+// #define DSLOG_TAG "M_BUFFER"
+// #include "../includes/ds_log.h"
 
 struct sem_thread{
     sem_t *semaphore;
@@ -29,23 +29,6 @@ struct timetick_thread{
     sem_thread *c_thread_p;
 };
 
-class M_buffer
-{
-    private:
-        uint32_t buffer_task_size = 0;
-        std::vector<struct sem_thread> *produce_threads;
-        sem_t *sems[MAX_PRODUCE_THREAD_NUM], *consume_sem;
-        struct sem_thread *consume_thread;
-        struct timetick_thread *timetick_thread;
-        std::queue<struct buffer_task *> *p_queue;
-        std::queue<struct buffer_task *> *c_queue;
-        pthread_mutex_t *p_mutex,*c_mutex;
-    public:
-        M_buffer(struct buffer_task **bts, uint32_t bts_num);
-        ~M_buffer();
-
-        uint8_t start_m_buffer_thread();
-};
 
 M_buffer::M_buffer(struct buffer_task **bts_p, uint32_t bts_num){
     uint32_t i = 0;
@@ -110,6 +93,7 @@ M_buffer::~M_buffer(){
         free(this->sems[i]);
     }
 }
+
 
 void *produce_thread_handle(void *arg){
     struct sem_thread *p_thread_p =  (struct sem_thread *)arg;
@@ -196,52 +180,52 @@ uint8_t M_buffer::start_m_buffer_thread(){
     }
 }
 
-static uint32_t g_serial = 0;
+// static uint32_t g_serial = 0;
 
-void *produce_task_func(void *arg){
-    g_serial++;
-    int *value = (int *)arg;
-    *value = g_serial;
-    usleep(50000);
-}
+// void *produce_task_func(void *arg){
+//     g_serial++;
+//     int *value = (int *)arg;
+//     *value = g_serial;
+//     usleep(50000);
+// }
 
 
-static struct timeval curr_time, last_time;
-void *consume_task_func(void *arg){
-    int *value = (int *)arg;
+// static struct timeval curr_time, last_time;
+// void *consume_task_func(void *arg){
+//     int *value = (int *)arg;
     
     
-    double time_stamp,last_time_stamp,time_splite;
-    last_time_stamp = (curr_time.tv_sec*1000000.0+curr_time.tv_usec)/1000;
-    gettimeofday(&curr_time,NULL);
-    time_stamp = (curr_time.tv_sec*1000000.0+curr_time.tv_usec)/1000;
-    time_splite = time_stamp - last_time_stamp;
+//     double time_stamp,last_time_stamp,time_splite;
+//     last_time_stamp = (curr_time.tv_sec*1000000.0+curr_time.tv_usec)/1000;
+//     gettimeofday(&curr_time,NULL);
+//     time_stamp = (curr_time.tv_sec*1000000.0+curr_time.tv_usec)/1000;
+//     time_splite = time_stamp - last_time_stamp;
     
-    printf("[%lf][%lf]<<<<<<<<<< show value = %d, pthread = %ld\n",time_stamp,time_splite,*value,pthread_self());
-    usleep(10000);
-}
+//     printf("[%lf][%lf]<<<<<<<<<< show value = %d, pthread = %ld\n",time_stamp,time_splite,*value,pthread_self());
+//     usleep(10000);
+// }
 
 
-int main(int argc, char const *argv[])
-{
-    uint32_t i;
-    uint32_t ret;
-    struct buffer_task *buffer_task;
-    uint32_t task_values[BUFFER_TASK_SIZE];
+// int main(int argc, char const *argv[])
+// {
+//     uint32_t i;
+//     uint32_t ret;
+//     struct buffer_task *buffer_task;
+//     uint32_t task_values[BUFFER_TASK_SIZE];
     
-    buffer_task = (struct buffer_task *)malloc(BUFFER_TASK_SIZE * sizeof(struct buffer_task));
-    for (i = 0; i < BUFFER_TASK_SIZE; i++){
-        buffer_task[i].args =  (void *)&(task_values[i]);
-        buffer_task[i].produce_task = produce_task_func;
-        buffer_task[i].consume_task = consume_task_func;
-    }
+//     buffer_task = (struct buffer_task *)malloc(BUFFER_TASK_SIZE * sizeof(struct buffer_task));
+//     for (i = 0; i < BUFFER_TASK_SIZE; i++){
+//         buffer_task[i].args =  (void *)&(task_values[i]);
+//         buffer_task[i].produce_task = produce_task_func;
+//         buffer_task[i].consume_task = consume_task_func;
+//     }
 
-    M_buffer m_buffer(&buffer_task,BUFFER_TASK_SIZE);
-    m_buffer.start_m_buffer_thread();
+//     M_buffer m_buffer(&buffer_task,BUFFER_TASK_SIZE);
+//     m_buffer.start_m_buffer_thread();
 
-    for(;;){
-        usleep(10000);
-    }
-    free(buffer_task);
-    return 0;
-}
+//     for(;;){
+//         usleep(10000);
+//     }
+//     free(buffer_task);
+//     return 0;
+// }

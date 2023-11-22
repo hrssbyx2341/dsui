@@ -12,8 +12,8 @@
 
 #include "input_reader.h"
 
-// #define DSLOG_TAG "DS_INPUT"
-// #include "../includes/ds_log.h"
+#define DSLOG_TAG "DS_INPUT"
+#include "../includes/ds_log.h"
 
 
 #define MAX_EVENTS MAX_INPUT_DEVICE
@@ -38,7 +38,7 @@ int init_his(){
 int init_epoll_fd(){
     g_epoll_fd = epoll_create1(0);
     if (g_epoll_fd == -1){
-        printf("epoll create failed\n");
+        DSLOGE("epoll create failed\n");
         return -1;
     }
     return 0;
@@ -49,9 +49,9 @@ int add_his(char *event_name, int32_t epoll_fd){
     for (i = 0; i < MAX_EVENTS; i++){
         if (g_his[i].is_avaiable == FALSE){
             if (g_his[i].device_name == NULL){
-                g_his[i].device_name = (char *)malloc(DEVICE_PATH_SIZE);
+                g_his[i].device_name = malloc(DEVICE_PATH_SIZE);
                 if (g_his[i].device_name == NULL){
-                    printf("device name malloc failed\n");
+                    DSLOGE("device name malloc failed\n");
                     return -1;
                 }
             }
@@ -59,21 +59,21 @@ int add_his(char *event_name, int32_t epoll_fd){
             sprintf(g_his[i].device_name,"/dev/input/%s",event_name);
             g_his[i].ev.data.fd = open(g_his[i].device_name,O_RDONLY);
             if (g_his[i].ev.data.fd == -1){
-                printf("open device %s failed\n",g_his[i].device_name);
+                DSLOGE("open device %s failed\n",g_his[i].device_name);
                 return -1;
             }
             g_his[i].ev.events = EPOLLIN;
             if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, g_his[i].ev.data.fd, &(g_his[i].ev))){
-                printf("epoll ctl add %s failed\n",g_his[i].device_name);
+                DSLOGE("epoll ctl add %s failed\n",g_his[i].device_name);
                 close(g_his[i].ev.data.fd);
                 return -1;
             }
             g_his[i].is_avaiable = TRUE;
-            printf("add device %s successful\n",g_his[i].device_name);
+            DSLOGI("add device %s successful\n",g_his[i].device_name);
             return 0;
         }
     }
-    printf("add device failed, device number overflow\n");
+    DSLOGW("add device failed, device number overflow\n");
 }
 
 int remove_his(char *event_name, int32_t epoll_fd){
@@ -82,12 +82,12 @@ int remove_his(char *event_name, int32_t epoll_fd){
         if (g_his[i].is_avaiable == TRUE){
             if (g_his[i].device_name != NULL && (strcmp(event_name, ((g_his[i].device_name + strlen("/dev/input") + 1))) == 0)){
                 if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, g_his[i].ev.data.fd, &(g_his[i].ev))){
-                    printf("epoll ctl del %s failed\n",g_his[i].device_name);
+                    DSLOGE("epoll ctl del %s failed\n",g_his[i].device_name);
                     return -1;
                 }
                 close(g_his[i].ev.data.fd);
                 g_his[i].is_avaiable = FALSE;
-                printf("del device %s successful\n",g_his[i].device_name);
+                DSLOGI("del device %s successful\n",g_his[i].device_name);
                 return 0;
             }
         }
@@ -109,7 +109,7 @@ void *event_change_listener(void *arg){
         if (dir != NULL){
             while ((entry = readdir(dir)) != NULL){
                 struct stat filestat;
-                char *file_path = (char *)malloc(DEVICE_PATH_SIZE);
+                char *file_path = malloc(DEVICE_PATH_SIZE);
                 memset(file_path,0,DEVICE_PATH_SIZE);
                 sprintf(file_path, "/dev/input/%s",entry->d_name);
                 int ret = stat(file_path,&filestat);
@@ -120,7 +120,7 @@ void *event_change_listener(void *arg){
                     }
                     if (strncmp(entry->d_name, "event", 5) == 0){
                         // TODO 这里用来初始化设备列表
-                        printf("find input dev = %s\n",entry->d_name);
+                        DSLOGD("find input dev = %s\n",entry->d_name);
                         ret = add_his(entry->d_name,g_epoll_fd);
                         if (!ret && cf != NULL && cf->event_callback != NULL){
                             cf->event_callback(entry->d_name,EVENT_ADD);
@@ -129,7 +129,7 @@ void *event_change_listener(void *arg){
                 }
             }
         }else{
-            printf("open dir /dev/input failed\n");
+            DSLOGE("open dir /dev/input failed\n");
             sleep(1);
             continue;
         }
@@ -141,14 +141,14 @@ void *event_change_listener(void *arg){
 
         fd = inotify_init();
         if (fd < 0) {
-            printf("inotify init failed\n");
+            DSLOGE("inotify init failed\n");
             sleep(1);
             continue;
         }
 
         wd = inotify_add_watch(fd, "/dev/input/", IN_CREATE | IN_DELETE);
         if (wd < 0) {
-            printf("inotify add watch failed\n");
+            DSLOGE("inotify add watch failed\n");
             sleep(1);
             continue;
         }
@@ -165,7 +165,7 @@ void *event_change_listener(void *arg){
                     if (event->mask & IN_CREATE) {
                         if (!(event->mask & IN_ISDIR) && (strncmp(event->name, "event", 5) == 0)) {
                             // TODO 这里要处理设备文件被创建的逻辑
-                            printf("%s file added\n",event->name);
+                            DSLOGD("%s file added\n",event->name);
                             ret = add_his(event->name,g_epoll_fd);
                             if (!ret && cf != NULL && cf->event_callback != NULL){
                                 cf->event_callback(event->name,EVENT_ADD);
@@ -174,7 +174,7 @@ void *event_change_listener(void *arg){
                     } else if (event->mask & IN_DELETE) {
                         if (!(event->mask & IN_ISDIR) && (strncmp(event->name, "event", 5) == 0)) {
                             // TODO 这里要处理设备文件被删除的逻辑
-                            printf("%s file removed\n",event->name);
+                            DSLOGD("%s file removed\n",event->name);
                             ret = remove_his(event->name,g_epoll_fd);
                             if (!ret && cf != NULL && cf->event_callback != NULL){
                                 cf->event_callback(event->name,EVENT_REMOVE);
