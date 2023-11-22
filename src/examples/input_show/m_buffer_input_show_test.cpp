@@ -27,7 +27,7 @@
 // #include "../../includes/ds_log.h"
 
 #define MAX_PRODUCE_THREAD_NUM 1
-#define BUFFER_TASK_SIZE 5
+#define BUFFER_TASK_SIZE 3
 #include "../../display/m_buffer.h"
 
 
@@ -42,7 +42,36 @@ struct mouse_pos{
    uint32_t min_y;
 };
 
-static struct mouse_pos g_mp;
+static struct mouse_pos g_mp, g_last_mp;
+
+uint32_t update_last_mp(){
+    uint32_t ret = 0;
+    if(g_last_mp.min_x != g_mp.min_x){
+        g_last_mp.min_x = g_mp.min_x;
+        ret = 1;
+    }
+    if (g_last_mp.max_x != g_mp.max_x){
+        g_last_mp.max_x = g_mp.max_x;
+        ret = 1;
+    }
+    if (g_last_mp.min_y != g_mp.min_y){
+        g_last_mp.min_y = g_mp.min_y;
+        ret = 1;
+    }
+    if (g_last_mp.max_y != g_mp.max_y){
+        g_last_mp.max_y = g_mp.max_y;
+        ret = 1;
+    }
+    if (g_last_mp.x != g_mp.x){
+        g_last_mp.x = g_mp.x;
+        ret = 1;
+    }
+    if (g_last_mp.y != g_mp.y){
+        g_last_mp.y = g_mp.y;
+        ret = 1;
+    }
+    return ret;
+}
 
 void init_mp(int32_t min_x, int32_t min_y, int32_t max_x, int32_t max_y){
     g_mp.min_x = min_x;
@@ -51,6 +80,7 @@ void init_mp(int32_t min_x, int32_t min_y, int32_t max_x, int32_t max_y){
     g_mp.max_y = max_y;
     g_mp.x = (max_x+min_x)/2;
     g_mp.y = (max_y+min_y)/2;
+    update_last_mp();
     //TODO 这里开始显示鼠标点
 }
 
@@ -185,16 +215,41 @@ void mdelay(int milliseconds)
     }
 }
 
-uint32_t g_color = 0;
-static void draw_fb(struct framebuffer *buf)
+uint32_t g_color = 0, trend_flag = 0;
+static uint32_t draw_fb(struct framebuffer *buf)
 {
 	uint32_t i = 0,h,w;
 	
     // 这里绘制图像
     // printf("create size = %d, create.w = %d, create.h = %d\n",create.size,create.width,create.height);
-    // g_color+=1;
-    // for (i = 0; i < (buf->size / 4); i++)
-	// 	buf->vaddr[i] = g_color;
+
+    // 屏幕缓慢变色+鼠标线条
+    if (trend_flag == 0){
+        g_color++;
+        if (g_color >= 0xf0){
+            trend_flag = 1;
+        }
+    }else{
+        g_color--;
+        if (g_color <= 10){
+            trend_flag = 0;
+        }
+    }
+    
+    for (h = 0; h < buf->height; h++){
+        for (w = 0; w < buf->width; w++){
+            uint32_t pix_num = h*buf->width + w;
+            if (std::abs(static_cast<int>(h - g_mp.y)) <= MIW && w==g_mp.x){
+                // printf("pos %dx%d is 0xff\n",w,h);
+                buf->vaddr[pix_num] = 0xffffffff;
+            }else{
+                buf->vaddr[pix_num] = g_color;
+            }
+        }
+    }
+
+
+
     // 绘制方块
     // for (h = 0; h < buf->height; h++){
     //     for (w = 0; w < buf->width; w++){
@@ -209,19 +264,19 @@ static void draw_fb(struct framebuffer *buf)
     // }
 
     // 绘制竖条
-    for (h = 0; h < buf->height; h++){
-        for (w = 0; w < buf->width; w++){
-            uint32_t pix_num = h*buf->width + w;
-            if (std::abs(static_cast<int>(h - g_mp.y)) <= MIW && w==g_mp.x){
-                // printf("pos %dx%d is 0xff\n",w,h);
-                buf->vaddr[pix_num] = 0;
-            }else{
-                buf->vaddr[pix_num] = 0xffffff;
-            }
-        }
-    }
-    mdelay(30);
-	return;
+    // for (h = 0; h < buf->height; h++){
+    //     for (w = 0; w < buf->width; w++){
+    //         uint32_t pix_num = h*buf->width + w;
+    //         if (std::abs(static_cast<int>(h - g_mp.y)) <= MIW && w==g_mp.x){
+    //             // printf("pos %dx%d is 0xff\n",w,h);
+    //             buf->vaddr[pix_num] = 0;
+    //         }else{
+    //             buf->vaddr[pix_num] = 0xffffff;
+    //         }
+    //     }
+    // }
+        return 0;
+    // mdelay(30);
 }
 
 
@@ -237,7 +292,7 @@ uint32_t crtc_id;
 int connectors_num = 0;
 int i = 0;
 
-void *produce_frame_buffer(void *arg){
+void *produce_frame_buffer(void *arg, uint32_t *ret){
     struct framebuffer *buf = (struct framebuffer*)arg;
     // printf("buffer info id= %d, pthreadid = %ld\n",buf->fb_id,pthread_self());
     if (buf == NULL){
@@ -245,18 +300,18 @@ void *produce_frame_buffer(void *arg){
     }
     // printf("xiaohu produce frame buffer\n");
     draw_fb(buf);
+    return NULL;
 }
 
 struct timeval curr_time;
 double last_time_stamp, time_stamp;
-void *consume_frame_buffer(void *arg){
+void *consume_frame_buffer(void *arg, uint32_t *ret){
     double one_frame_time;
     last_time_stamp = time_stamp;
     gettimeofday(&curr_time,NULL);
     time_stamp = (curr_time.tv_sec*1000000.0 +curr_time.tv_usec)/1000;
     one_frame_time = time_stamp - last_time_stamp;
 
-    
     printf("[%lf] one frame time = %lf, fps = %lf\n",time_stamp, one_frame_time, (1000/one_frame_time));
     struct framebuffer *buf = (struct framebuffer*)arg;
     // printf("buffer info id= %d, pthreadid = %ld\n",buf->fb_id,pthread_self());

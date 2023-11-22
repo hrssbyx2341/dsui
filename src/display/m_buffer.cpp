@@ -108,7 +108,8 @@ void *produce_thread_handle(void *arg){
             pthread_mutex_unlock(p_thread_p->p_mutex_p);
         }
         if (p_task != NULL && p_task->produce_task != NULL){
-            p_task->produce_task(p_task->args);
+            uint32_t ret = 0;
+            p_task->produce_task(p_task->args, &ret);
             // TODO 这里按理说要对task进行排序
             pthread_mutex_lock(p_thread_p->c_mutex_p);
             p_thread_p->c_queue_p->push(p_task);
@@ -129,7 +130,8 @@ void *consume_thread_handle(void *arg){
         }
         pthread_mutex_unlock(c_thread_p->c_mutex_p);
         if (c_task != NULL && c_task->consume_task != NULL){
-            c_task->consume_task(c_task->args);
+            uint32_t ret = 0;
+            c_task->consume_task(c_task->args, &ret);
             pthread_mutex_lock(c_thread_p->p_mutex_p);
             c_thread_p->p_queue_p->push(c_task);
             pthread_mutex_unlock(c_thread_p->p_mutex_p);

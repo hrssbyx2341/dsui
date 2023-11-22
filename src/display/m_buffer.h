@@ -14,7 +14,7 @@
 #define BUFFER_TASK_SIZE 20
 #endif
 
-typedef void* (*task_func_t)(void *);
+typedef void* (*task_func_t)(void *, uint32_t *ret);
 
 struct buffer_task{
     void *args;
