@@ -161,30 +161,30 @@ int main(int argc, char **argv)
 	fd = open("/dev/dri/card0", O_RDWR | O_CLOEXEC);	//打开card0，card0一般绑定HDMI和LVDS
  
 	resources = drmModeGetResources(fd);	//获取drmModeRes资源,包含fb、crtc、encoder、connector等
-    printf("xiaohu get resouece fbs count = %d crtcs count = %d, connectors count = %d, encoders count =%d\n",resources->count_fbs,resources->count_crtcs,resources->count_connectors,resources->count_encoders);
+    printf("get resouece fbs count = %d crtcs count = %d, connectors count = %d, encoders count =%d\n",resources->count_fbs,resources->count_crtcs,resources->count_connectors,resources->count_encoders);
     
     connectors_num = resources->count_connectors;
     for ( i = 0; i < connectors_num; i++ ){
         crtc_id = resources->crtcs[0];  //获取crtc id
         conn_id = resources->connectors[0];  //获取connector id
         connector = drmModeGetConnector(fd, conn_id);	//根据connector_id获取connector资源
-        printf("xiaohu, modes count = %d, props count = %d, encoder count = %d\n",connector->count_modes, connector->count_props, connector->count_encoders);
+        printf("modes count = %d, props count = %d, encoder count = %d\n",connector->count_modes, connector->count_props, connector->count_encoders);
         if (connector == NULL){
-            printf("xiaohu ,get connector failed\n");
+            printf("get connector failed\n");
             return -1;
         }
         if (connector->count_modes == 0) {
-            printf("xiahu ,get connector mode count failed\n");
+            printf("get connector mode count failed\n");
             return -2;
         }
     }
     
     if (connector == NULL){
-        printf("xiaohu ,get connector failed\n");
+        printf("get connector failed\n");
         return -1;
     }
     if (connector->count_modes == 0){
-        printf("xiahu ,get connector mode count failed\n");
+        printf("get connector mode count failed\n");
         return -2;
     }
 
